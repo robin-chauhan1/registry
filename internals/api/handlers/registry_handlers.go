@@ -115,6 +115,8 @@ func (h *RegistryHandler) UpdateRegistry(c *gin.Context) {
 		BRID:             registry.BRID,
 		City:             registry.City,
 	})
+
+	fmt.Println("Registry update result:", updated, "Error:", err)
 	if err != nil {
 		switch err {
 		case repository.ErrRegistryNotFound:

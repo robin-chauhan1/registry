@@ -28,21 +28,21 @@ type RegistryRepository struct {
 type Registry struct {
 	ID               uint      `json:"id" gorm:"primaryKey"`
 	UserID           uint      `json:"user_id" gorm:"not null"` // Foreign key field
-	SubscriberID     string    `json:"subscriber_id" gorm:"not null" validate:"required"`
-	Status           string    `json:"status" gorm:"not null" validate:"required"`
-	UKID             string    `json:"ukId" gorm:"not null" validate:"required"`
-	SubscriberURL    string    `json:"subscriber_url" gorm:"not null" validate:"required"`
-	Country          string    `json:"country" gorm:"not null" validate:"required"`
-	Domain           string    `json:"domain" gorm:"not null" validate:"required"`
-	ValidFrom        time.Time `json:"valid_from" gorm:"not null" validate:"required"`
-	ValidUntil       time.Time `json:"valid_until" gorm:"not null" validate:"required"`
-	Type             string    `json:"type" gorm:"not null" validate:"required"`
-	SigningPublicKey string    `json:"signing_public_key" gorm:"not null" validate:"required"`
-	EncrPublicKey    string    `json:"encr_public_key" gorm:"not null" validate:"required"`
+	SubscriberID     string    `json:"subscriber_id" gorm:"not null"`
+	Status           string    `json:"status" gorm:"not null"`
+	UKID             string    `json:"ukId" gorm:"not null"`
+	SubscriberURL    string    `json:"subscriber_url" gorm:"not null"`
+	Country          string    `json:"country" gorm:"not null"`
+	Domain           string    `json:"domain" gorm:"not null"`
+	ValidFrom        time.Time `json:"valid_from" gorm:"not null"`
+	ValidUntil       time.Time `json:"valid_until" gorm:"not null"`
+	Type             string    `json:"type" gorm:"not null"`
+	SigningPublicKey string    `json:"signing_public_key" gorm:"not null"`
+	EncrPublicKey    string    `json:"encr_public_key" gorm:"not null"`
 	Created          time.Time `json:"created" gorm:"autoCreateTime"`
 	Updated          time.Time `json:"updated" gorm:"autoUpdateTime"`
-	BRID             string    `json:"br_id" gorm:"not null" validate:"required"`
-	City             string    `json:"city" gorm:"not null" validate:"required"`
+	BRID             string    `json:"br_id" gorm:"not null"`
+	City             string    `json:"city" gorm:"not null"`
 }
 
 // NewRegistryRepository creates a new registry repository with the given database connection
@@ -90,22 +90,21 @@ func (rr *RegistryRepository) CreateRegistry(ctx context.Context, r *Registry) (
 }
 
 func (rr *RegistryRepository) UpdateRegistry(ctx context.Context, id string, r *Registry) (*Registry, error) {
-	if err := validateRegistry(r); err != nil {
-		return nil, err
-	}
-
-	result := rr.db.WithContext(ctx).First(r, id)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	// Load the existing registry
+	var existing Registry
+	if err := rr.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrRegistryNotFound
 		}
-		return nil, fmt.Errorf("failed to find registry: %w", result.Error)
+		return nil, fmt.Errorf("failed to find registry: %w", err)
 	}
 
-	if err := rr.db.WithContext(ctx).Save(r).Error; err != nil {
+	// Update only non-zero fields from the input registry
+	if err := rr.db.WithContext(ctx).Model(&existing).Updates(r).Error; err != nil {
 		return nil, fmt.Errorf("failed to update registry: %w", err)
 	}
-	return r, nil
+
+	return &existing, nil
 }
 
 func (rr *RegistryRepository) DeleteRegistry(ctx context.Context, id string) error {
